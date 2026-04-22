@@ -135,8 +135,76 @@ STRATEGI:
     return msg
 
 
-def should_send_update(state, current_signature):
-    return state.get("signature") != current_signature
+def build_ticker_state(item):
+    return {
+        "signature": json.dumps(
+            {
+                "ticker": item["ticker"],
+                "setup": item["setup"],
+                "regime": item["market_regime"],
+                "score_bucket": (item["score"] // 5) * 5,
+                "confidence_bucket": (item["confidence"] // 5) * 5,
+                "buy_signal": item["buy_signal"],
+            },
+            sort_keys=True,
+        ),
+        "setup": item["setup"],
+        "regime": item["market_regime"],
+        "score": item["score"],
+        "confidence": item["confidence"],
+        "rsi": item["rsi"],
+        "adx": item["adx"],
+        "volume_ratio": item["volume_ratio"],
+        "buy_signal": item["buy_signal"],
+        "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
+    }
+
+
+def build_ticker_change_line(previous, current):
+    if not previous:
+        return (
+            f"BARU {current['ticker']} | {current['setup']} | Regime {current['regime']} "
+            f"| Score {current['score']} | Conf {current['confidence']} | RSI {current['rsi']:.1f}"
+        )
+
+    return (
+        f"{current['ticker']} | {previous.get('setup', '-')} -> {current['setup']} | "
+        f"{previous.get('regime', '-')} -> {current['regime']} | "
+        f"Score {previous.get('score', 0)} -> {current['score']} | "
+        f"Conf {previous.get('confidence', 0)} -> {current['confidence']} | "
+        f"RSI {previous.get('rsi', 0):.1f} -> {current['rsi']:.1f}"
+    )
+
+
+def build_changes_message(changed_items, trade_time):
+    lines = [f"PERUBAHAN SAHAM ({len(changed_items)})", ""]
+    lines.append(f"STATUS MARKET: {trade_time}")
+    lines.append(f"WAKTU JAKARTA: {datetime.now(JAKARTA_TZ).strftime('%Y-%m-%d %H:%M:%S WIB')}")
+    lines.append("")
+
+    for previous, current in changed_items:
+        lines.append(build_ticker_change_line(previous, current))
+        lines.append(f"  - Volume x{current['volume_ratio']:.2f} | ADX {current['adx']:.2f}")
+        lines.append(f"  - {build_signal_note(current)}")
+        lines.append(f"  - Alasan: {current['reasons']}")
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def should_send_update(previous_state, current_ticker_states):
+    previous_tickers = previous_state.get("tickers", {})
+    if not previous_tickers:
+        return True
+
+    for ticker, current_state in current_ticker_states.items():
+        previous_state_for_ticker = previous_tickers.get(ticker)
+        if not previous_state_for_ticker:
+            return True
+        if previous_state_for_ticker.get("signature") != current_state.get("signature"):
+            return True
+
+    return False
 
 
 def download_history(ticker):
@@ -472,30 +540,38 @@ def run_scan_once():
     trade_time = get_trading_time()
     buy_candidates = select_buy_candidates(results)
     best = buy_candidates[0] if buy_candidates else top_candidates[0]
-    state = load_last_signal_state()
-    current_signature = build_signal_signature(best, buy_candidates, SCAN_MODE)
-    msg = build_scan_message(top_candidates, buy_candidates, best, trade_time)
+    previous_state = load_last_signal_state()
+    previous_tickers = previous_state.get("tickers", {})
+    current_ticker_states = {item["ticker"]: build_ticker_state(item) for item in results}
 
-    if not should_send_update(state, current_signature):
-        print("Sinyal tidak berubah, Telegram tidak dikirim")
+    changed_items = []
+    for ticker, current_state in current_ticker_states.items():
+        previous_ticker_state = previous_tickers.get(ticker)
+        if not previous_ticker_state or previous_ticker_state.get("signature") != current_state.get("signature"):
+            changed_items.append((previous_ticker_state, current_state))
+
+    if not changed_items:
+        print("Tidak ada perubahan per saham, Telegram tidak dikirim")
         print("Scan selesai")
         return {
             "status": "unchanged",
-            "message": "Sinyal tidak berubah, Telegram tidak dikirim",
+            "message": "Tidak ada perubahan per saham, Telegram tidak dikirim",
             "telegram_sent": False,
             "mode": SCAN_MODE,
             "top_count": len(top_candidates),
             "buy_count": len(buy_candidates),
             "best": best,
             "top_tickers": [item["ticker"] for item in top_candidates[:config.TOP_N]],
-            "signature": current_signature,
+            "changed_count": 0,
+            "changed_tickers": [],
         }
 
+    msg = build_changes_message(changed_items, trade_time)
     telegram_ok = send_telegram(msg)
     print("Scan selesai")
     if telegram_ok:
         save_last_signal_state({
-            "signature": current_signature,
+            "tickers": current_ticker_states,
             "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
         })
     else:
@@ -510,7 +586,8 @@ def run_scan_once():
         "buy_count": len(buy_candidates),
         "best": best,
         "top_tickers": [item["ticker"] for item in top_candidates[:config.TOP_N]],
-        "signature": current_signature,
+        "changed_count": len(changed_items),
+        "changed_tickers": [current["ticker"] for _, current in changed_items],
     }
 
 
