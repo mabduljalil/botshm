@@ -77,11 +77,12 @@ Notifikasi perubahan saham:
 Catatan penting:
 - Vercel Cron Jobs memakai timezone UTC.
 - Plan Hobby hanya mendukung cron sekali sehari.
-- Config default di repo ini sekarang menjalankan `/api?mode=daily` pada `0 2 * * *` UTC, kira-kira jam 09:00 WIB.
+- Config default di repo ini sekarang menjalankan `/api?mode=daily&notify=changes&bootstrap=1` pada `0 2 * * *` UTC, kira-kira jam 09:00 WIB.
 - Untuk scan intraday per menit, biasanya perlu Pro atau plan di atasnya.
 - Jika kamu set `CRON_SECRET`, Vercel akan kirim header `Authorization: Bearer <secret>`.
 - Untuk cek Telegram benar-benar terkirim, buka endpoint `action=test-telegram`.
 - Untuk notifikasi perubahan saham, `bootstrap=1` menyimpan state awal tanpa spam saat run pertama.
+- Kamu tidak perlu klik domain setelah deploy; cron Vercel yang akan memanggil function otomatis.
 
 File yang dipakai untuk Vercel:
 - `api/scan.py`: endpoint scan
