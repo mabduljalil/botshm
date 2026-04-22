@@ -68,13 +68,20 @@ Tes kirim Telegram:
 /api?action=test-telegram
 ```
 
+Notifikasi perubahan saham:
+
+```bash
+/api?mode=daily&notify=changes&bootstrap=1
+```
+
 Catatan penting:
 - Vercel Cron Jobs memakai timezone UTC.
 - Plan Hobby hanya mendukung cron sekali sehari.
-- Config default di repo ini sekarang menjalankan `/api/scan?mode=daily` pada `0 2 * * *` UTC, kira-kira jam 09:00 WIB.
+- Config default di repo ini sekarang menjalankan `/api?mode=daily` pada `0 2 * * *` UTC, kira-kira jam 09:00 WIB.
 - Untuk scan intraday per menit, biasanya perlu Pro atau plan di atasnya.
 - Jika kamu set `CRON_SECRET`, Vercel akan kirim header `Authorization: Bearer <secret>`.
 - Untuk cek Telegram benar-benar terkirim, buka endpoint `action=test-telegram`.
+- Untuk notifikasi perubahan saham, `bootstrap=1` menyimpan state awal tanpa spam saat run pertama.
 
 File yang dipakai untuk Vercel:
 - `api/scan.py`: endpoint scan
@@ -92,7 +99,7 @@ File yang dipakai untuk Vercel:
    - `CHAT_ID`
    - `CRON_SECRET` jika endpoint mau diamankan
 5. Push perubahan ke branch yang dideploy.
-6. Cek deployment berhasil dan endpoint `/api/scan` bisa dibuka.
+6. Cek deployment berhasil dan endpoint `/api` bisa dibuka.
 7. Kalau pakai `CRON_SECRET`, tes dengan header:
 
 ```bash

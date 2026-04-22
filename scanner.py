@@ -515,7 +515,7 @@ def run_backtest():
     return _run_backtest()
 
 
-def run_scan_once():
+def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
     results = []
 
     for stock in config.STOCKS:
@@ -564,6 +564,26 @@ def run_scan_once():
     previous_tickers = previous_state.get("tickers", {})
     current_ticker_states = {item["ticker"]: build_ticker_state(item) for item in results}
 
+    if bootstrap_on_first_run and not previous_tickers:
+        save_last_signal_state({
+            "tickers": current_ticker_states,
+            "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
+            "bootstrap": True,
+        })
+        print("State awal disimpan, Telegram tidak dikirim")
+        return {
+            "status": "bootstrapped",
+            "message": "State awal disimpan, Telegram tidak dikirim",
+            "telegram_sent": False,
+            "mode": SCAN_MODE,
+            "top_count": len(top_candidates),
+            "buy_count": len(buy_candidates),
+            "best": best,
+            "top_tickers": [item["ticker"] for item in top_candidates[:config.TOP_N]],
+            "changed_count": len(current_ticker_states),
+            "changed_tickers": [item["ticker"] for item in results],
+        }
+
     changed_items = []
     for ticker, current_state in current_ticker_states.items():
         previous_ticker_state = previous_tickers.get(ticker)
@@ -573,6 +593,20 @@ def run_scan_once():
     if not changed_items:
         print("Tidak ada perubahan per saham, Telegram tidak dikirim")
         print("Scan selesai")
+        return {
+            "status": "unchanged",
+            "message": "Tidak ada perubahan per saham, Telegram tidak dikirim",
+            "telegram_sent": False,
+            "mode": SCAN_MODE,
+            "top_count": len(top_candidates),
+            "buy_count": len(buy_candidates),
+            "best": best,
+            "top_tickers": [item["ticker"] for item in top_candidates[:config.TOP_N]],
+            "changed_count": 0,
+            "changed_tickers": [],
+        }
+
+    if notify_mode == "changes_only" and not changed_items:
         return {
             "status": "unchanged",
             "message": "Tidak ada perubahan per saham, Telegram tidak dikirim",

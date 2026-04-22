@@ -63,17 +63,21 @@ class handler(BaseHTTPRequestHandler):
 
         mode = query.get("mode", ["daily"])[0].lower()
         intraday = mode != "daily"
+        notify_mode = query.get("notify", ["changes"])[0].lower()
+        bootstrap = query.get("bootstrap", ["1"])[0].lower() not in {"0", "false", "no"}
 
         try:
             import scanner
 
             scanner.configure_scan_mode(intraday)
-            result = scanner.run_scan_once()
+            result = scanner.run_scan_once(notify_mode=notify_mode, bootstrap_on_first_run=bootstrap)
             payload = {
                 "ok": True,
                 "mode": scanner.SCAN_MODE,
                 "timestamp_wib": datetime.now(config.JAKARTA_TZ).isoformat(),
                 "path": request_url.path,
+                "notify_mode": notify_mode,
+                "bootstrap": bootstrap,
                 "result": result,
             }
         except Exception as exc:
@@ -82,6 +86,8 @@ class handler(BaseHTTPRequestHandler):
                 "error": str(exc),
                 "traceback": traceback.format_exc(),
                 "mode": "intraday" if intraday else "daily",
+                "notify_mode": notify_mode,
+                "bootstrap": bootstrap,
                 "path": request_url.path,
             }
 
