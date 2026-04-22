@@ -59,7 +59,7 @@ Bot bisa dijalankan sebagai Vercel Function lewat cron.
 Endpoint:
 
 ```bash
-/api/scan?mode=intraday
+/api?mode=intraday
 ```
 
 Catatan penting:
@@ -71,6 +71,7 @@ Catatan penting:
 
 File yang dipakai untuk Vercel:
 - `api/scan.py`: endpoint scan
+- `api/index.py`: entrypoint Vercel
 - `vercel.json`: konfigurasi cron
 - `requirements.txt`: dependency Python
 
