@@ -4,7 +4,8 @@ from zoneinfo import ZoneInfo
 
 
 APP_DIR = Path(__file__).resolve().parent
-CACHE_DIR = APP_DIR / ".cache"
+RUNTIME_CACHE_ROOT = Path("/tmp/bibit") if os.getenv("VERCEL") else APP_DIR / ".cache"
+CACHE_DIR = RUNTIME_CACHE_ROOT
 YFINANCE_CACHE_DIR = CACHE_DIR / "yfinance"
 STATE_FILE = CACHE_DIR / "last_signal_state.json"
 
