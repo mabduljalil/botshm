@@ -56,23 +56,24 @@ Di PowerShell, pakai `.\` supaya command dari folder saat ini bisa dikenali.
 
 Bot bisa dijalankan sebagai Vercel Function lewat cron.
 
-Endpoint:
+Endpoint cepat:
+
+- Scan harian otomatis: `/api?mode=daily&notify=changes&bootstrap=1`
+- Health-check: `/api?action=health`
+- Test Telegram: `/api?action=test-telegram`
+- Scan manual intraday: `/api?mode=intraday&notify=changes&bootstrap=1`
+
+Contoh pakai browser / curl:
 
 ```bash
-/api?mode=intraday
+curl "https://nama-project.vercel.app/api?action=health"
 ```
 
-Tes kirim Telegram:
-
-```bash
-/api?action=test-telegram
-```
-
-Health-check sistem:
-
-```bash
-/api?action=health
-```
+Health-check sekarang menampilkan ringkasan `ready` + detail komponen penting:
+- `summary`: status singkat untuk dashboard
+- `components.telegram`: status token/chat
+- `components.cache`: status cache/runtime
+- `components.runtime`: mode dan timezone
 
 Notifikasi perubahan saham:
 
@@ -90,6 +91,8 @@ Catatan penting:
 - Untuk notifikasi perubahan saham, `bootstrap=1` menyimpan state awal tanpa spam saat run pertama.
 - Kamu tidak perlu klik domain setelah deploy; cron Vercel yang akan memanggil function otomatis.
 - `action=health` menampilkan status env, cache, dan runtime supaya troubleshooting lebih cepat.
+- `action=health` sekarang dibuat ringkas untuk dashboard, tapi tetap memuat detail komponen inti.
+- `action=test-telegram` dipakai buat verifikasi pengiriman pesan Telegram dari Vercel.
 
 File yang dipakai untuk Vercel:
 - `api/scan.py`: endpoint scan

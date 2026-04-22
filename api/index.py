@@ -40,14 +40,31 @@ def _runtime_health():
             if attempt < 3:
                 continue
 
+    ready = bot_token_set and chat_id_set and cache_status["cache_writable"]
+
     return {
-        "bot_token_set": bot_token_set,
-        "chat_id_set": chat_id_set,
-        "cron_secret_set": cron_secret_set,
-        "cache": cache_status,
-        "runtime": {
-            "mode": os.getenv("VERCEL_ENV", "local"),
-            "timezone": str(config.JAKARTA_TZ),
+        "ready": ready,
+        "summary": {
+            "telegram": bot_token_set and chat_id_set,
+            "cache": cache_status["cache_writable"],
+            "cron_secret": cron_secret_set,
+            "runtime": os.getenv("VERCEL_ENV", "local"),
+        },
+        "components": {
+            "telegram": {
+                "bot_token": bot_token_set,
+                "chat_id": chat_id_set,
+            },
+            "cache": {
+                "dir": cache_status["cache_dir"],
+                "writable": cache_status["cache_writable"],
+                "state_file": cache_status["state_file_exists"],
+                "yfinance": cache_status["yfinance_cache_dir_exists"],
+            },
+            "runtime": {
+                "mode": os.getenv("VERCEL_ENV", "local"),
+                "timezone": str(config.JAKARTA_TZ),
+            },
         },
     }
 
