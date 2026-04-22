@@ -167,6 +167,7 @@ def build_ticker_state(item):
         "atr_pct": item["atr_pct"],
         "support_20": item["support_20"],
         "resistance_20": item["resistance_20"],
+        "reasons": item["reasons"],
         "buy_signal": item["buy_signal"],
         "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
     }
@@ -205,7 +206,7 @@ def build_changes_message(changed_items, trade_time):
             f"  - Support {current['support_20']:.2f} | Resistance {current['resistance_20']:.2f}"
         )
         lines.append(f"  - {build_signal_note(current)}")
-        lines.append(f"  - Alasan: {current['reasons']}")
+        lines.append(f"  - Alasan: {current.get('reasons', 'n/a')}")
         lines.append("")
 
     return "\n".join(lines).strip()
