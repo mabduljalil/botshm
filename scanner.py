@@ -140,14 +140,22 @@ def build_ticker_state(item):
         "signature": json.dumps(
             {
                 "ticker": item["ticker"],
+                "price": round(float(item["price"]), 2),
                 "setup": item["setup"],
                 "regime": item["market_regime"],
-                "score_bucket": (item["score"] // 5) * 5,
-                "confidence_bucket": (item["confidence"] // 5) * 5,
+                "score": int(item["score"]),
+                "confidence": int(item["confidence"]),
+                "rsi": round(float(item["rsi"]), 2),
+                "adx": round(float(item["adx"]), 2),
+                "volume_ratio": round(float(item["volume_ratio"]), 2),
+                "atr_pct": round(float(item["atr_pct"]), 2),
+                "support_20": round(float(item["support_20"]), 2),
+                "resistance_20": round(float(item["resistance_20"]), 2),
                 "buy_signal": item["buy_signal"],
             },
             sort_keys=True,
         ),
+        "price": item["price"],
         "setup": item["setup"],
         "regime": item["market_regime"],
         "score": item["score"],
@@ -155,6 +163,9 @@ def build_ticker_state(item):
         "rsi": item["rsi"],
         "adx": item["adx"],
         "volume_ratio": item["volume_ratio"],
+        "atr_pct": item["atr_pct"],
+        "support_20": item["support_20"],
+        "resistance_20": item["resistance_20"],
         "buy_signal": item["buy_signal"],
         "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
     }
@@ -168,7 +179,8 @@ def build_ticker_change_line(previous, current):
         )
 
     return (
-        f"{current['ticker']} | {previous.get('setup', '-')} -> {current['setup']} | "
+        f"{current['ticker']} | {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
+        f"{previous.get('setup', '-')} -> {current['setup']} | "
         f"{previous.get('regime', '-')} -> {current['regime']} | "
         f"Score {previous.get('score', 0)} -> {current['score']} | "
         f"Conf {previous.get('confidence', 0)} -> {current['confidence']} | "
@@ -184,7 +196,13 @@ def build_changes_message(changed_items, trade_time):
 
     for previous, current in changed_items:
         lines.append(build_ticker_change_line(previous, current))
-        lines.append(f"  - Volume x{current['volume_ratio']:.2f} | ADX {current['adx']:.2f}")
+        lines.append(
+            f"  - Volume x{current['volume_ratio']:.2f} | ADX {current['adx']:.2f} | "
+            f"ATR {current['atr_pct']:.2f}%"
+        )
+        lines.append(
+            f"  - Support {current['support_20']:.2f} | Resistance {current['resistance_20']:.2f}"
+        )
         lines.append(f"  - {build_signal_note(current)}")
         lines.append(f"  - Alasan: {current['reasons']}")
         lines.append("")
