@@ -42,7 +42,7 @@ class handler(BaseHTTPRequestHandler):
             bot_token_set = bool(os.getenv("BOT_TOKEN", "").strip())
             chat_id_set = bool(os.getenv("CHAT_ID", "").strip())
             message = (
-                "✅ Test Telegram dari Vercel berhasil.\n"
+                "OK Test Telegram dari Vercel berhasil.\n"
                 f"Waktu: {datetime.now(config.JAKARTA_TZ).strftime('%Y-%m-%d %H:%M:%S WIB')}"
             )
             telegram_ok = send_telegram(message)

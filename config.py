@@ -1,4 +1,5 @@
 import os
+import logging
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -35,6 +36,25 @@ STOCKS = [
 ]
 
 JAKARTA_TZ = ZoneInfo("Asia/Jakarta")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+
+def setup_logging():
+    level = getattr(logging, LOG_LEVEL, logging.INFO)
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
+    else:
+        root_logger.setLevel(level)
+    return root_logger
+
+
+def get_logger(name):
+    setup_logging()
+    return logging.getLogger(name)
 
 
 def load_dotenv_file(env_path=".env"):
@@ -58,3 +78,4 @@ def load_dotenv_file(env_path=".env"):
 load_dotenv_file()
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 YFINANCE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+setup_logging()

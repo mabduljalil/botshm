@@ -11,6 +11,8 @@ from ta.volatility import AverageTrueRange
 import config
 from telegram import load_last_signal_state, save_last_signal_state, send_telegram
 
+logger = config.get_logger(__name__)
+
 
 if hasattr(yf, "set_tz_cache_location"):
     yf.set_tz_cache_location(str(config.YFINANCE_CACHE_DIR))
@@ -228,28 +230,35 @@ def should_send_update(previous_state, current_ticker_states):
 
 
 def download_history(ticker):
-    try:
-        data = yf.download(
-            ticker,
-            period=SCAN_PERIOD,
-            interval=SCAN_INTERVAL,
-            progress=False,
-            auto_adjust=False,
-            threads=False,
-        )
-    except Exception as exc:
-        print(f"Error download {ticker}: {exc}")
-        return None
+    data = None
+    for attempt in range(1, 4):
+        try:
+            data = yf.download(
+                ticker,
+                period=SCAN_PERIOD,
+                interval=SCAN_INTERVAL,
+                progress=False,
+                auto_adjust=False,
+                threads=False,
+            )
+        except Exception as exc:
+            logger.warning("Error download %s pada percobaan %s/3: %s", ticker, attempt, exc)
+            data = None
+        if data is not None and not data.empty:
+            break
+        logger.warning("Data kosong untuk %s pada percobaan %s/3", ticker, attempt)
+        if attempt < 3:
+            time.sleep(attempt)
 
     if data is None or data.empty:
-        print(f"Data kosong untuk {ticker}")
+        logger.error("Gagal download data untuk %s setelah 3 percobaan", ticker)
         return None
 
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
 
     if len(data) < config.MIN_CANDLES:
-        print(f"Data {ticker} kurang dari {config.MIN_CANDLES} candle")
+        logger.warning("Data %s kurang dari %s candle", ticker, config.MIN_CANDLES)
         return None
 
     close = data.get("Close")
@@ -257,18 +266,18 @@ def download_history(ticker):
     low = data.get("Low")
     volume = data.get("Volume")
     if close is None:
-        print(f"Kolom Close tidak ditemukan untuk {ticker}")
+        logger.warning("Kolom Close tidak ditemukan untuk %s", ticker)
         return None
 
     if isinstance(close, pd.DataFrame):
         close = close.squeeze()
 
     if close is None or close.empty:
-        print(f"Close kosong untuk {ticker}")
+        logger.warning("Close kosong untuk %s", ticker)
         return None
 
     if high is None or low is None or volume is None:
-        print(f"Kolom High/Low/Volume tidak lengkap untuk {ticker}")
+        logger.warning("Kolom High/Low/Volume tidak lengkap untuk %s", ticker)
         return None
 
     return data
@@ -296,7 +305,7 @@ def build_feature_frame(data):
         resistance_20 = high.shift(1).rolling(20).max()
         support_20 = low.shift(1).rolling(20).min()
     except Exception as exc:
-        print(f"Error hitung indikator: {exc}")
+        logger.error("Error hitung indikator: %s", exc)
         return None
 
     df = pd.DataFrame({
@@ -498,7 +507,7 @@ def analyze(ticker):
 
     df = build_feature_frame(data)
     if df is None or df.empty:
-        print(f"Indikator kosong setelah dropna untuk {ticker}")
+        logger.warning("Indikator kosong setelah dropna untuk %s", ticker)
         return None
 
     latest = evaluate_row(df.iloc[-1])
@@ -523,11 +532,11 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
         if result:
             results.append(result)
 
-    print(f"Total saham berhasil dianalisis: {len(results)}")
+    logger.info("Total saham berhasil dianalisis: %s", len(results))
 
     if not results:
         msg = "Semua saham gagal dianalisis (cek koneksi / API)"
-        print(msg)
+        logger.info(msg)
         telegram_ok = send_telegram(msg)
         return {
             "status": "error",
@@ -544,7 +553,7 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
 
     if not top_candidates:
         msg = "Tidak ada saham yang memenuhi kriteria"
-        print(msg)
+        logger.info(msg)
         telegram_ok = send_telegram(msg)
         return {
             "status": "no_candidates",
@@ -570,7 +579,7 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
             "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
             "bootstrap": True,
         })
-        print("State awal disimpan, Telegram tidak dikirim")
+        logger.info("State awal disimpan, Telegram tidak dikirim")
         return {
             "status": "bootstrapped",
             "message": "State awal disimpan, Telegram tidak dikirim",
@@ -591,8 +600,8 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
             changed_items.append((previous_ticker_state, current_state))
 
     if not changed_items:
-        print("Tidak ada perubahan per saham, Telegram tidak dikirim")
-        print("Scan selesai")
+        logger.info("Tidak ada perubahan per saham, Telegram tidak dikirim")
+        logger.info("Scan selesai")
         return {
             "status": "unchanged",
             "message": "Tidak ada perubahan per saham, Telegram tidak dikirim",
@@ -622,14 +631,14 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
 
     msg = build_changes_message(changed_items, trade_time)
     telegram_ok = send_telegram(msg)
-    print("Scan selesai")
+    logger.info("Scan selesai")
     if telegram_ok:
         save_last_signal_state({
             "tickers": current_ticker_states,
             "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
         })
     else:
-        print("Pesan Telegram gagal dikirim")
+        logger.error("Pesan Telegram gagal dikirim")
 
     return {
         "status": "sent" if telegram_ok else "telegram_failed",
@@ -647,17 +656,17 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
 
 def run_forever(interval_seconds):
     interval_seconds = max(1, int(interval_seconds))
-    print(f"Auto scan aktif. Interval: {interval_seconds} detik")
+    logger.info("Auto scan aktif. Interval: %s detik", interval_seconds)
 
     while True:
         started_at = datetime.now(JAKARTA_TZ)
-        print(f"\n[{started_at.strftime('%Y-%m-%d %H:%M:%S WIB')}] Mulai scan...")
+        logger.info("[%s] Mulai scan...", started_at.strftime("%Y-%m-%d %H:%M:%S WIB"))
         try:
             run_scan_once()
         except KeyboardInterrupt:
             raise
         except Exception as exc:
-            print(f"Error saat auto scan: {exc}")
+            logger.error("Error saat auto scan: %s", exc)
 
         elapsed = (datetime.now(JAKARTA_TZ) - started_at).total_seconds()
         sleep_for = max(0, interval_seconds - elapsed)

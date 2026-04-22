@@ -4,6 +4,8 @@ import config
 import scanner
 from backtest import run_backtest
 
+logger = config.get_logger(__name__)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Signal saham dan backtest sederhana")
@@ -33,10 +35,10 @@ def main():
     scanner.configure_scan_mode(run_intraday)
 
     if run_loop:
-        print(f"Mode scan: {scanner.SCAN_MODE} ({scanner.SCAN_INTERVAL}, {scanner.SCAN_PERIOD})")
+        logger.info("Mode scan: %s (%s, %s)", scanner.SCAN_MODE, scanner.SCAN_INTERVAL, scanner.SCAN_PERIOD)
         scanner.run_forever(args.interval)
     else:
-        print(f"Mode scan: {scanner.SCAN_MODE} ({scanner.SCAN_INTERVAL}, {scanner.SCAN_PERIOD})")
+        logger.info("Mode scan: %s (%s, %s)", scanner.SCAN_MODE, scanner.SCAN_INTERVAL, scanner.SCAN_PERIOD)
         scanner.run_scan_once()
 
 
