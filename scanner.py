@@ -155,6 +155,7 @@ def build_ticker_state(item):
             },
             sort_keys=True,
         ),
+        "ticker": item["ticker"],
         "price": item["price"],
         "setup": item["setup"],
         "regime": item["market_regime"],
@@ -179,7 +180,7 @@ def build_ticker_change_line(previous, current):
         )
 
     return (
-        f"{current['ticker']} | {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
+        f"{current.get('ticker', '-')} | {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
         f"{previous.get('setup', '-')} -> {current['setup']} | "
         f"{previous.get('regime', '-')} -> {current['regime']} | "
         f"Score {previous.get('score', 0)} -> {current['score']} | "
