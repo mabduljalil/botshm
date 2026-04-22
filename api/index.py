@@ -1,11 +1,11 @@
 import json
 import os
+import traceback
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 import config
-import scanner
 
 
 def _json_response(handler, status_code, payload):
@@ -39,6 +39,8 @@ class handler(BaseHTTPRequestHandler):
         intraday = mode != "daily"
 
         try:
+            import scanner
+
             scanner.configure_scan_mode(intraday)
             result = scanner.run_scan_once()
             payload = {
@@ -48,14 +50,13 @@ class handler(BaseHTTPRequestHandler):
                 "path": request_url.path,
                 "result": result,
             }
-            _json_response(self, 200, payload)
         except Exception as exc:
-            _json_response(
-                self,
-                500,
-                {
-                    "ok": False,
-                    "error": str(exc),
-                    "mode": scanner.SCAN_MODE,
-                },
-            )
+            payload = {
+                "ok": False,
+                "error": str(exc),
+                "traceback": traceback.format_exc(),
+                "mode": "intraday" if intraday else "daily",
+                "path": request_url.path,
+            }
+
+        _json_response(self, 200, payload)
