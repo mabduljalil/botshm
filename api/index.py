@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 import config
+from telegram import send_telegram
 
 
 def _json_response(handler, status_code, payload):
@@ -35,6 +36,31 @@ class handler(BaseHTTPRequestHandler):
 
         request_url = urlparse(self.path)
         query = parse_qs(request_url.query)
+        action = query.get("action", ["scan"])[0].lower()
+
+        if action == "test-telegram":
+            bot_token_set = bool(os.getenv("BOT_TOKEN", "").strip())
+            chat_id_set = bool(os.getenv("CHAT_ID", "").strip())
+            message = (
+                "✅ Test Telegram dari Vercel berhasil.\n"
+                f"Waktu: {datetime.now(config.JAKARTA_TZ).strftime('%Y-%m-%d %H:%M:%S WIB')}"
+            )
+            telegram_ok = send_telegram(message)
+            _json_response(
+                self,
+                200,
+                {
+                    "ok": True,
+                    "action": "test-telegram",
+                    "telegram_sent": telegram_ok,
+                    "bot_token_set": bot_token_set,
+                    "chat_id_set": chat_id_set,
+                    "timestamp_wib": datetime.now(config.JAKARTA_TZ).isoformat(),
+                    "path": request_url.path,
+                },
+            )
+            return
+
         mode = query.get("mode", ["daily"])[0].lower()
         intraday = mode != "daily"
 
