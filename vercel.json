@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/scan?mode=intraday",
-      "schedule": "* * * * *"
+      "path": "/api/scan?mode=daily",
+      "schedule": "0 2 * * *"
     }
   ],
   "functions": {

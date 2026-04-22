@@ -65,6 +65,7 @@ Endpoint:
 Catatan penting:
 - Vercel Cron Jobs memakai timezone UTC.
 - Plan Hobby hanya mendukung cron sekali sehari.
+- Config default di repo ini sekarang menjalankan `/api/scan?mode=daily` pada `0 2 * * *` UTC, kira-kira jam 09:00 WIB.
 - Untuk scan intraday per menit, biasanya perlu Pro atau plan di atasnya.
 - Jika kamu set `CRON_SECRET`, Vercel akan kirim header `Authorization: Bearer <secret>`.
 
