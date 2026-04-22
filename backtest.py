@@ -1,6 +1,9 @@
 import pandas as pd
 
 import config
+
+logger = config.get_logger(__name__)
+
 from scanner import (
     build_feature_frame,
     download_history,
@@ -15,7 +18,7 @@ def backtest_stock(ticker):
 
     df = build_feature_frame(data)
     if df is None or df.empty:
-        print(f"Indikator kosong setelah dropna untuk {ticker}")
+        logger.warning("Indikator kosong setelah dropna untuk %s", ticker)
         return None
 
     df = df.copy()
@@ -79,21 +82,21 @@ def summarize_signal_frame(df, horizon_days, threshold):
 
 def run_backtest():
     all_rows = []
-    print("Menjalankan backtest sederhana...")
+    logger.info("Menjalankan backtest sederhana...")
 
     for stock in config.STOCKS:
-        print(f"Backtest {stock}...")
+        logger.info("Backtest %s...", stock)
         result = backtest_stock(stock)
         if result is not None and not result.empty:
             all_rows.append(result)
 
     if not all_rows:
-        print("Backtest gagal: tidak ada data yang bisa dievaluasi")
+        logger.error("Backtest gagal: tidak ada data yang bisa dievaluasi")
         return
 
     df = pd.concat(all_rows, ignore_index=True)
     if df.empty:
-        print("Backtest gagal: hasil gabungan kosong")
+        logger.error("Backtest gagal: hasil gabungan kosong")
         return
 
     base_metrics = {}
@@ -150,51 +153,44 @@ def run_backtest():
         ascending=[False, False, False, False],
     ).iloc[0]
 
-    print("\n=== BACKTEST SUMMARY ===")
-    print(f"Samples           : {len(df)}")
+    logger.info("=== BACKTEST SUMMARY ===")
+    logger.info("Samples           : %s", len(df))
     for horizon in config.BACKTEST_HORIZONS:
         metrics = base_metrics[horizon]
-        print(f"\nBaseline {horizon}D hit rate : {metrics['hit_rate']:.2f}%")
-        print(f"Baseline {horizon}D avg ret  : {metrics['avg_return']:.2f}%")
-        print(f"Baseline {horizon}D median   : {metrics['median_return']:.2f}%")
+        logger.info("Baseline %sD hit rate : %.2f%%", horizon, metrics['hit_rate'])
+        logger.info("Baseline %sD avg ret  : %.2f%%", horizon, metrics['avg_return'])
+        logger.info("Baseline %sD median   : %.2f%%", horizon, metrics['median_return'])
 
-    print(f"\nBUY WATCH count   : {signal_count}")
+    logger.info("BUY WATCH count   : %s", signal_count)
     for horizon in config.BACKTEST_HORIZONS:
         metrics = signal_metrics[horizon]
-        print(f"BUY WATCH {horizon}D hit rate: {metrics['hit_rate']:.2f}%")
-        print(f"BUY WATCH {horizon}D avg ret : {metrics['avg_return']:.2f}%")
-        print(f"BUY WATCH {horizon}D median  : {metrics['median_return']:.2f}%")
+        logger.info("BUY WATCH %sD hit rate: %.2f%%", horizon, metrics['hit_rate'])
+        logger.info("BUY WATCH %sD avg ret : %.2f%%", horizon, metrics['avg_return'])
+        logger.info("BUY WATCH %sD median  : %.2f%%", horizon, metrics['median_return'])
 
     if best_bucket is not None:
-        print(f"Best score bucket : {best_bucket} ({best_bucket_return:.2f}%)")
+        logger.info("Best score bucket : %s (%.2f%%)", best_bucket, best_bucket_return)
 
-    print(
-        "\nBest sweep      : "
-        f"threshold >= {int(best_sweep['threshold'])} | "
-        f"horizon {int(best_sweep['horizon'])}D | "
-        f"avg ret {float(best_sweep['avg_return']):.2f}% | "
-        f"hit {float(best_sweep['hit_rate']):.2f}% | "
-        f"pf {float(best_sweep['profit_factor']):.2f}"
-    )
+    logger.info("Best sweep      : threshold >= %s | horizon %sD | avg ret %.2f%% | hit %.2f%% | pf %.2f", int(best_sweep['threshold']), int(best_sweep['horizon']), float(best_sweep['avg_return']), float(best_sweep['hit_rate']), float(best_sweep['profit_factor']))
 
-    print("\nPer score bucket:")
+    logger.info("Per score bucket:")
     for bucket in config.BACKTEST_BUCKET_LABELS:
         if bucket in score_hit_rate:
-            print(
+            logger.info(
                 f"{bucket:>7} | hit {score_hit_rate[bucket]:6.2f}% | "
                 f"avg ret {score_avg_return[bucket]:7.2f}%"
             )
         else:
-            print(f"{bucket:>7} | no samples")
+            logger.info(f"{bucket:>7} | no samples")
 
-    print("\nThreshold sweep:")
+    logger.info("Threshold sweep:")
     for horizon in config.BACKTEST_HORIZONS:
         horizon_df = sweep_df[sweep_df["horizon"] == horizon].sort_values(
             ["avg_return", "hit_rate", "profit_factor"],
             ascending=[False, False, False],
         )
         best_row = horizon_df.iloc[0]
-        print(
+        logger.info(
             f"{horizon}D best -> threshold >= {int(best_row['threshold'])} | "
             f"count {int(best_row['signal_count'])} | "
             f"hit {float(best_row['hit_rate']):.2f}% | "
@@ -213,9 +209,9 @@ def run_backtest():
             .sort_values(["hit_rate", "avg_return"], ascending=False)
             .head(5)
         )
-        print("\nTop BUY WATCH tickers:")
+        logger.info("\nTop BUY WATCH tickers:")
         for ticker, row in signal_tickers.iterrows():
-            print(
+            logger.info(
                 f"{ticker} | count {int(row['count'])} | "
                 f"hit {float(row['hit_rate']) * 100:.2f}% | "
                 f"avg ret {float(row['avg_return']) * 100:.2f}%"

@@ -68,6 +68,12 @@ Tes kirim Telegram:
 /api?action=test-telegram
 ```
 
+Health-check sistem:
+
+```bash
+/api?action=health
+```
+
 Notifikasi perubahan saham:
 
 ```bash
@@ -83,6 +89,7 @@ Catatan penting:
 - Untuk cek Telegram benar-benar terkirim, buka endpoint `action=test-telegram`.
 - Untuk notifikasi perubahan saham, `bootstrap=1` menyimpan state awal tanpa spam saat run pertama.
 - Kamu tidak perlu klik domain setelah deploy; cron Vercel yang akan memanggil function otomatis.
+- `action=health` menampilkan status env, cache, dan runtime supaya troubleshooting lebih cepat.
 
 File yang dipakai untuk Vercel:
 - `api/scan.py`: endpoint scan
