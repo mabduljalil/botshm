@@ -59,7 +59,8 @@ Bot bisa dijalankan sebagai Vercel Function lewat cron.
 Endpoint cepat:
 
 - Scan harian otomatis: `/api?mode=daily&notify=changes&bootstrap=1`
-- Health-check: `/api?action=health`
+- Health-check ringkas: `/api?action=health`
+- Health-check verbose: `/api?action=health&view=verbose`
 - Test Telegram: `/api?action=test-telegram`
 - Scan manual intraday: `/api?mode=intraday&notify=changes&bootstrap=1`
 
@@ -69,11 +70,9 @@ Contoh pakai browser / curl:
 curl "https://nama-project.vercel.app/api?action=health"
 ```
 
-Health-check sekarang menampilkan ringkasan `ready` + detail komponen penting:
-- `summary`: status singkat untuk dashboard
-- `components.telegram`: status token/chat
-- `components.cache`: status cache/runtime
-- `components.runtime`: mode dan timezone
+Health-check sekarang mendukung dua mode:
+- `compact` default: `ready` + `summary`
+- `verbose`: `ready` + `summary` + `components`
 
 Notifikasi perubahan saham:
 
@@ -92,6 +91,7 @@ Catatan penting:
 - Kamu tidak perlu klik domain setelah deploy; cron Vercel yang akan memanggil function otomatis.
 - `action=health` menampilkan status env, cache, dan runtime supaya troubleshooting lebih cepat.
 - `action=health` sekarang dibuat ringkas untuk dashboard, tapi tetap memuat detail komponen inti.
+- `action=health&view=verbose` menampilkan detail komponen penuh.
 - `action=test-telegram` dipakai buat verifikasi pengiriman pesan Telegram dari Vercel.
 
 File yang dipakai untuk Vercel:

@@ -69,14 +69,23 @@ def _runtime_health():
     }
 
 
-def build_health_payload(request_path="/"):
-    return {
+def build_health_payload(request_path="/", view="compact"):
+    status = _runtime_health()
+    payload = {
         "ok": True,
         "action": "health",
         "timestamp_wib": datetime.now(config.JAKARTA_TZ).isoformat(),
         "path": request_path,
-        "status": _runtime_health(),
+        "status": {
+            "ready": status["ready"],
+            "summary": status["summary"],
+        },
     }
+
+    if view == "verbose":
+        payload["status"]["components"] = status["components"]
+
+    return payload
 
 
 def build_test_telegram_payload(request_path="/"):
@@ -126,9 +135,10 @@ class handler(BaseHTTPRequestHandler):
         request_url = urlparse(self.path)
         query = parse_qs(request_url.query)
         action = query.get("action", ["scan"])[0].lower()
+        view = query.get("view", ["compact"])[0].lower()
 
         if action == "health":
-            payload = build_health_payload(request_url.path)
+            payload = build_health_payload(request_url.path, view=view)
             _json_response(self, 200, payload)
             return
 

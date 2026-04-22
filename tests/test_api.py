@@ -2,6 +2,7 @@ import json
 import os
 import unittest
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import api.index as api_index
@@ -51,7 +52,32 @@ class ApiDoGetTests(unittest.TestCase):
         self.assertEqual(payload["action"], "health")
         self.assertTrue(payload["status"]["ready"])
         self.assertTrue(payload["status"]["summary"]["telegram"])
+        self.assertNotIn("components", payload["status"])
+
+    def test_health_do_get_returns_verbose_status(self):
+        fake_handler = FakeHandler("/api?action=health&view=verbose")
+
+        with patch.object(api_index, "_runtime_health", return_value={
+            "ready": True,
+            "summary": {
+                "telegram": True,
+                "cache": True,
+                "cron_secret": False,
+                "runtime": "production",
+            },
+            "components": {
+                "telegram": {"bot_token": True, "chat_id": True},
+                "cache": {"dir": "/tmp/cache", "writable": True, "state_file": True, "yfinance": True},
+                "runtime": {"mode": "production", "timezone": "Asia/Jakarta"},
+            },
+        }):
+            api_index.handler.do_GET(fake_handler)
+
+        payload = json.loads(fake_handler.wfile.getvalue().decode("utf-8"))
+        self.assertEqual(fake_handler.status_code, 200)
+        self.assertTrue(payload["ok"])
         self.assertIn("components", payload["status"])
+        self.assertIn("telegram", payload["status"]["components"])
 
     def test_test_telegram_do_get_calls_sender(self):
         fake_handler = FakeHandler("/api?action=test-telegram")
@@ -68,6 +94,31 @@ class ApiDoGetTests(unittest.TestCase):
         self.assertEqual(payload["action"], "test-telegram")
         self.assertTrue(payload["telegram_sent"])
         send_mock.assert_called_once()
+
+    def test_scan_do_get_returns_scan_payload(self):
+        fake_handler = FakeHandler("/api?mode=daily&notify=changes&bootstrap=1")
+        fake_scanner = SimpleNamespace(
+            configure_scan_mode=lambda intraday: None,
+            run_scan_once=lambda notify_mode="changes", bootstrap_on_first_run=True: {
+                "status": "sent",
+                "telegram_sent": True,
+                "changed_count": 1,
+            },
+            SCAN_MODE="daily",
+        )
+
+        with (
+            patch.dict("sys.modules", {"scanner": fake_scanner}),
+            patch.object(api_index.config, "JAKARTA_TZ", api_index.config.JAKARTA_TZ),
+        ):
+            api_index.handler.do_GET(fake_handler)
+
+        payload = json.loads(fake_handler.wfile.getvalue().decode("utf-8"))
+        self.assertEqual(fake_handler.status_code, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["notify_mode"], "changes")
+        self.assertEqual(payload["bootstrap"], True)
+        self.assertEqual(payload["result"]["status"], "sent")
 
 
 if __name__ == "__main__":

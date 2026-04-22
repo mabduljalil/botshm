@@ -179,15 +179,14 @@ def build_ticker_change_line(previous, current):
     icon = "\U0001F7E2" if current.get("setup") == "BUY WATCH" else "\U0001F7E1" if current.get("setup") == "WATCHLIST" else "\u26AA"
     if not previous:
         return (
-            f"{icon} {current['ticker']} | NEW {current['setup']} | {current['regime']} | "
-            f"Score {current['score']} | Conf {current['confidence']} | Px {current['price']:.2f}"
+            f"{icon} {current['ticker']} | {current['setup']} | {current['regime']} | "
+            f"Px {current['price']:.2f} | Sc {current['score']} | Cf {current['confidence']}"
         )
 
     return (
-        f"{icon} {current.get('ticker', '-')} | {previous.get('setup', '-')} -> {current['setup']} | "
-        f"Px {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
-        f"Score {previous.get('score', 0)} -> {current['score']} | "
-        f"Conf {previous.get('confidence', 0)} -> {current['confidence']}"
+        f"{icon} {current.get('ticker', '-')} | {previous.get('setup', '-')}→{current['setup']} | "
+        f"Px {previous.get('price', 0):.2f}→{current['price']:.2f} | "
+        f"Sc {previous.get('score', 0)}→{current['score']} | Cf {previous.get('confidence', 0)}→{current['confidence']}"
     )
 
 
@@ -199,9 +198,10 @@ def build_changes_message(changed_items, trade_time):
 
     for previous, current in changed_items:
         lines.append(build_ticker_change_line(previous, current))
-        lines.append(f"  {current['setup']} | Regime {current['regime']} | RSI {current['rsi']:.1f} | ADX {current['adx']:.1f}")
-        lines.append(f"  Vol x{current['volume_ratio']:.2f} | ATR {current['atr_pct']:.2f}%")
-        lines.append(f"  {current.get('reasons', 'n/a')}")
+        lines.append(
+            f"  RSI {current['rsi']:.1f} | ADX {current['adx']:.1f} | Vol x{current['volume_ratio']:.2f} | "
+            f"{current.get('reasons', 'n/a')}"
+        )
         lines.append("")
 
     return "\n".join(lines).strip()
