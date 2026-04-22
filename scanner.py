@@ -176,14 +176,15 @@ def build_ticker_state(item):
 
 
 def build_ticker_change_line(previous, current):
+    icon = "🟢" if current.get("setup") == "BUY WATCH" else "🟡" if current.get("setup") == "WATCHLIST" else "⚪"
     if not previous:
         return (
-            f"BARU {current['ticker']} | {current['setup']} | Regime {current['regime']} "
+            f"{icon} BARU {current['ticker']} | {current['setup']} | Regime {current['regime']} "
             f"| Score {current['score']} | Conf {current['confidence']} | RSI {current['rsi']:.1f}"
         )
 
     return (
-        f"{current.get('ticker', '-')} | {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
+        f"{icon} {current.get('ticker', '-')} | {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
         f"{previous.get('setup', '-')} -> {current['setup']} | "
         f"{previous.get('regime', '-')} -> {current['regime']} | "
         f"Score {previous.get('score', 0)} -> {current['score']} | "
@@ -193,7 +194,7 @@ def build_ticker_change_line(previous, current):
 
 
 def build_changes_message(changed_items, trade_time):
-    lines = [f"PERUBAHAN SAHAM ({len(changed_items)})", ""]
+    lines = [f"ALERT SAHAM TERPILIH ({len(changed_items)})", ""]
     lines.append(f"STATUS MARKET: {trade_time}")
     lines.append(f"WAKTU JAKARTA: {datetime.now(JAKARTA_TZ).strftime('%Y-%m-%d %H:%M:%S WIB')}")
     lines.append("")
@@ -212,6 +213,10 @@ def build_changes_message(changed_items, trade_time):
         lines.append("")
 
     return "\n".join(lines).strip()
+
+
+def is_alert_candidate(item):
+    return item.get("setup") in {"WATCHLIST", "BUY WATCH"}
 
 
 def should_send_update(previous_state, current_ticker_states):
@@ -599,6 +604,14 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
         if not previous_ticker_state or previous_ticker_state.get("signature") != current_state.get("signature"):
             changed_items.append((previous_ticker_state, current_state))
 
+    if changed_items:
+        save_last_signal_state({
+            "tickers": current_ticker_states,
+            "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
+        })
+
+    alert_items = [(previous, current) for previous, current in changed_items if is_alert_candidate(current)]
+
     if not changed_items:
         logger.info("Tidak ada perubahan per saham, Telegram tidak dikirim")
         logger.info("Scan selesai")
@@ -615,28 +628,27 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
             "changed_tickers": [],
         }
 
-    if notify_mode == "changes_only" and not changed_items:
+    if not alert_items:
+        logger.info("Perubahan ada, tetapi tidak ada alert kandidat yang lolos filter")
+        logger.info("Scan selesai")
         return {
-            "status": "unchanged",
-            "message": "Tidak ada perubahan per saham, Telegram tidak dikirim",
+            "status": "updated_silently",
+            "message": "Perubahan ada, tetapi tidak ada alert kandidat yang lolos filter",
             "telegram_sent": False,
             "mode": SCAN_MODE,
             "top_count": len(top_candidates),
             "buy_count": len(buy_candidates),
             "best": best,
             "top_tickers": [item["ticker"] for item in top_candidates[:config.TOP_N]],
-            "changed_count": 0,
-            "changed_tickers": [],
+            "changed_count": len(changed_items),
+            "changed_tickers": [current["ticker"] for _, current in changed_items],
         }
 
-    msg = build_changes_message(changed_items, trade_time)
+    msg = build_changes_message(alert_items, trade_time)
     telegram_ok = send_telegram(msg)
     logger.info("Scan selesai")
     if telegram_ok:
-        save_last_signal_state({
-            "tickers": current_ticker_states,
-            "updated_at": datetime.now(JAKARTA_TZ).isoformat(),
-        })
+        logger.info("Telegram alert terkirim untuk %s ticker", len(alert_items))
     else:
         logger.error("Pesan Telegram gagal dikirim")
 
@@ -649,8 +661,8 @@ def run_scan_once(notify_mode="changes", bootstrap_on_first_run=True):
         "buy_count": len(buy_candidates),
         "best": best,
         "top_tickers": [item["ticker"] for item in top_candidates[:config.TOP_N]],
-        "changed_count": len(changed_items),
-        "changed_tickers": [current["ticker"] for _, current in changed_items],
+        "changed_count": len(alert_items),
+        "changed_tickers": [current["ticker"] for _, current in alert_items],
     }
 
 

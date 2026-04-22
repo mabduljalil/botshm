@@ -118,6 +118,49 @@ class ScannerChangeFlowTests(unittest.TestCase):
         self.assertEqual(len(save_calls), 1)
         self.assertEqual(len(telegram_calls), 1)
 
+    def test_avoid_change_updates_state_without_send(self):
+        previous_items = [
+            make_item("AAA.JK", 100, "AVOID", "SIDEWAYS", 10, 10),
+            make_item("BBB.JK", 200, "AVOID", "SIDEWAYS", 10, 10),
+        ]
+        current_items = [
+            make_item("AAA.JK", 101, "AVOID", "SIDEWAYS", 12, 12),
+            make_item("BBB.JK", 200, "AVOID", "SIDEWAYS", 10, 10),
+        ]
+        previous_state = {
+            "tickers": {item["ticker"]: scanner.build_ticker_state(item) for item in previous_items},
+            "updated_at": "2026-04-22T00:00:00+07:00",
+        }
+
+        result, save_calls, telegram_calls = self._run_scan(current_items, previous_state=previous_state, bootstrap=False)
+
+        self.assertEqual(result["status"], "updated_silently")
+        self.assertFalse(result["telegram_sent"])
+        self.assertEqual(len(save_calls), 1)
+        self.assertEqual(len(telegram_calls), 0)
+
+    def test_watchlist_change_sends_with_icon(self):
+        previous_items = [
+            make_item("AAA.JK", 100, "AVOID", "SIDEWAYS", 10, 10),
+            make_item("BBB.JK", 200, "AVOID", "SIDEWAYS", 10, 10),
+        ]
+        current_items = [
+            make_item("AAA.JK", 101, "WATCHLIST", "BULLISH", 68, 68),
+            make_item("BBB.JK", 200, "AVOID", "SIDEWAYS", 10, 10),
+        ]
+        previous_state = {
+            "tickers": {item["ticker"]: scanner.build_ticker_state(item) for item in previous_items},
+            "updated_at": "2026-04-22T00:00:00+07:00",
+        }
+
+        result, save_calls, telegram_calls = self._run_scan(current_items, previous_state=previous_state, bootstrap=False)
+
+        self.assertEqual(result["status"], "sent")
+        self.assertTrue(result["telegram_sent"])
+        self.assertEqual(len(save_calls), 1)
+        self.assertEqual(len(telegram_calls), 1)
+        self.assertIn("\U0001f7e1", telegram_calls[0])
+
 
 if __name__ == "__main__":
     unittest.main()

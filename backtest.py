@@ -154,49 +154,31 @@ def run_backtest():
     ).iloc[0]
 
     logger.info("=== BACKTEST SUMMARY ===")
-    logger.info("Samples           : %s", len(df))
-    for horizon in config.BACKTEST_HORIZONS:
-        metrics = base_metrics[horizon]
-        logger.info("Baseline %sD hit rate : %.2f%%", horizon, metrics['hit_rate'])
-        logger.info("Baseline %sD avg ret  : %.2f%%", horizon, metrics['avg_return'])
-        logger.info("Baseline %sD median   : %.2f%%", horizon, metrics['median_return'])
-
-    logger.info("BUY WATCH count   : %s", signal_count)
-    for horizon in config.BACKTEST_HORIZONS:
-        metrics = signal_metrics[horizon]
-        logger.info("BUY WATCH %sD hit rate: %.2f%%", horizon, metrics['hit_rate'])
-        logger.info("BUY WATCH %sD avg ret : %.2f%%", horizon, metrics['avg_return'])
-        logger.info("BUY WATCH %sD median  : %.2f%%", horizon, metrics['median_return'])
-
+    logger.info("Samples: %s | BUY WATCH count: %s", len(df), signal_count)
+    logger.info(
+        "Baseline %sD: hit %.2f%% | avg %.2f%% | median %.2f%%",
+        config.BACKTEST_HORIZON_DAYS,
+        base_metrics[config.BACKTEST_HORIZON_DAYS]["hit_rate"],
+        base_metrics[config.BACKTEST_HORIZON_DAYS]["avg_return"],
+        base_metrics[config.BACKTEST_HORIZON_DAYS]["median_return"],
+    )
+    logger.info(
+        "BUY WATCH %sD: hit %.2f%% | avg %.2f%% | median %.2f%%",
+        config.BACKTEST_HORIZON_DAYS,
+        signal_metrics[config.BACKTEST_HORIZON_DAYS]["hit_rate"],
+        signal_metrics[config.BACKTEST_HORIZON_DAYS]["avg_return"],
+        signal_metrics[config.BACKTEST_HORIZON_DAYS]["median_return"],
+    )
     if best_bucket is not None:
-        logger.info("Best score bucket : %s (%.2f%%)", best_bucket, best_bucket_return)
-
-    logger.info("Best sweep      : threshold >= %s | horizon %sD | avg ret %.2f%% | hit %.2f%% | pf %.2f", int(best_sweep['threshold']), int(best_sweep['horizon']), float(best_sweep['avg_return']), float(best_sweep['hit_rate']), float(best_sweep['profit_factor']))
-
-    logger.info("Per score bucket:")
-    for bucket in config.BACKTEST_BUCKET_LABELS:
-        if bucket in score_hit_rate:
-            logger.info(
-                f"{bucket:>7} | hit {score_hit_rate[bucket]:6.2f}% | "
-                f"avg ret {score_avg_return[bucket]:7.2f}%"
-            )
-        else:
-            logger.info(f"{bucket:>7} | no samples")
-
-    logger.info("Threshold sweep:")
-    for horizon in config.BACKTEST_HORIZONS:
-        horizon_df = sweep_df[sweep_df["horizon"] == horizon].sort_values(
-            ["avg_return", "hit_rate", "profit_factor"],
-            ascending=[False, False, False],
-        )
-        best_row = horizon_df.iloc[0]
-        logger.info(
-            f"{horizon}D best -> threshold >= {int(best_row['threshold'])} | "
-            f"count {int(best_row['signal_count'])} | "
-            f"hit {float(best_row['hit_rate']):.2f}% | "
-            f"avg ret {float(best_row['avg_return']):.2f}% | "
-            f"pf {float(best_row['profit_factor']):.2f}"
-        )
+        logger.info("Best score bucket: %s (%.2f%%)", best_bucket, best_bucket_return)
+    logger.info(
+        "Best sweep: threshold >= %s | horizon %sD | avg %.2f%% | hit %.2f%% | pf %.2f",
+        int(best_sweep["threshold"]),
+        int(best_sweep["horizon"]),
+        float(best_sweep["avg_return"]),
+        float(best_sweep["hit_rate"]),
+        float(best_sweep["profit_factor"]),
+    )
 
     if signal_count:
         signal_tickers = (
@@ -207,12 +189,14 @@ def run_backtest():
                 avg_return=(f"future_return_{config.BACKTEST_HORIZON_DAYS}d", "mean"),
             )
             .sort_values(["hit_rate", "avg_return"], ascending=False)
-            .head(5)
+            .head(3)
         )
-        logger.info("\nTop BUY WATCH tickers:")
+        logger.info("Top BUY WATCH tickers:")
         for ticker, row in signal_tickers.iterrows():
             logger.info(
-                f"{ticker} | count {int(row['count'])} | "
-                f"hit {float(row['hit_rate']) * 100:.2f}% | "
-                f"avg ret {float(row['avg_return']) * 100:.2f}%"
+                "%s | count %s | hit %.2f%% | avg %.2f%%",
+                ticker,
+                int(row["count"]),
+                float(row["hit_rate"]) * 100,
+                float(row["avg_return"]) * 100,
             )

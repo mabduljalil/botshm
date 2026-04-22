@@ -8,6 +8,8 @@ from urllib.parse import parse_qs, urlparse
 import config
 from telegram import send_telegram
 
+logger = config.get_logger(__name__)
+
 
 def _json_response(handler, status_code, payload):
     body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
@@ -43,14 +45,19 @@ def _runtime_health():
         "cache_writable": False,
     }
 
-    try:
-        config.CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        probe_file = config.CACHE_DIR / ".healthcheck"
-        probe_file.write_text("ok", encoding="utf-8")
-        cache_status["cache_writable"] = probe_file.read_text(encoding="utf-8") == "ok"
-        probe_file.unlink(missing_ok=True)
-    except Exception:
-        cache_status["cache_writable"] = False
+    for attempt in range(1, 4):
+        try:
+            config.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            probe_file = config.CACHE_DIR / ".healthcheck"
+            probe_file.write_text("ok", encoding="utf-8")
+            cache_status["cache_writable"] = probe_file.read_text(encoding="utf-8") == "ok"
+            probe_file.unlink(missing_ok=True)
+            break
+        except Exception as exc:
+            logger.warning("Health cache probe gagal pada percobaan %s/3: %s", attempt, exc)
+            cache_status["cache_writable"] = False
+            if attempt < 3:
+                continue
 
     return {
         "bot_token_set": bot_token_set,
