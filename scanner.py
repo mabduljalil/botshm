@@ -176,44 +176,35 @@ def build_ticker_state(item):
 
 
 def build_ticker_change_line(previous, current):
-    icon = "🟢" if current.get("setup") == "BUY WATCH" else "🟡" if current.get("setup") == "WATCHLIST" else "⚪"
+    icon = "\U0001F7E2" if current.get("setup") == "BUY WATCH" else "\U0001F7E1" if current.get("setup") == "WATCHLIST" else "\u26AA"
     if not previous:
         return (
-            f"{icon} BARU {current['ticker']} | {current['setup']} | Regime {current['regime']} "
-            f"| Score {current['score']} | Conf {current['confidence']} | RSI {current['rsi']:.1f}"
+            f"{icon} {current['ticker']} | NEW {current['setup']} | {current['regime']} | "
+            f"Score {current['score']} | Conf {current['confidence']} | Px {current['price']:.2f}"
         )
 
     return (
-        f"{icon} {current.get('ticker', '-')} | {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
-        f"{previous.get('setup', '-')} -> {current['setup']} | "
-        f"{previous.get('regime', '-')} -> {current['regime']} | "
+        f"{icon} {current.get('ticker', '-')} | {previous.get('setup', '-')} -> {current['setup']} | "
+        f"Px {previous.get('price', 0):.2f} -> {current['price']:.2f} | "
         f"Score {previous.get('score', 0)} -> {current['score']} | "
-        f"Conf {previous.get('confidence', 0)} -> {current['confidence']} | "
-        f"RSI {previous.get('rsi', 0):.1f} -> {current['rsi']:.1f}"
+        f"Conf {previous.get('confidence', 0)} -> {current['confidence']}"
     )
 
 
 def build_changes_message(changed_items, trade_time):
-    lines = [f"ALERT SAHAM TERPILIH ({len(changed_items)})", ""]
-    lines.append(f"STATUS MARKET: {trade_time}")
+    lines = [f"ALERT PERGERAKAN SAHAM ({len(changed_items)})", ""]
+    lines.append(f"STATUS: {trade_time}")
     lines.append(f"WAKTU JAKARTA: {datetime.now(JAKARTA_TZ).strftime('%Y-%m-%d %H:%M:%S WIB')}")
     lines.append("")
 
     for previous, current in changed_items:
         lines.append(build_ticker_change_line(previous, current))
-        lines.append(
-            f"  - Volume x{current['volume_ratio']:.2f} | ADX {current['adx']:.2f} | "
-            f"ATR {current['atr_pct']:.2f}%"
-        )
-        lines.append(
-            f"  - Support {current['support_20']:.2f} | Resistance {current['resistance_20']:.2f}"
-        )
-        lines.append(f"  - {build_signal_note(current)}")
-        lines.append(f"  - Alasan: {current.get('reasons', 'n/a')}")
+        lines.append(f"  {current['setup']} | Regime {current['regime']} | RSI {current['rsi']:.1f} | ADX {current['adx']:.1f}")
+        lines.append(f"  Vol x{current['volume_ratio']:.2f} | ATR {current['atr_pct']:.2f}%")
+        lines.append(f"  {current.get('reasons', 'n/a')}")
         lines.append("")
 
     return "\n".join(lines).strip()
-
 
 def is_alert_candidate(item):
     return item.get("setup") in {"WATCHLIST", "BUY WATCH"}
