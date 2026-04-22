@@ -5,10 +5,5 @@
       "path": "/api/scan?mode=daily",
       "schedule": "0 2 * * *"
     }
-  ],
-  "functions": {
-    "api/**/*.py": {
-      "excludeFiles": "{tests/**,__tests__/**,**/*.test.py,**/test_*.py,fixtures/**,__fixtures__/**,testdata/**,sample-data/**,static/**,assets/**}"
-    }
-  }
+  ]
 }
